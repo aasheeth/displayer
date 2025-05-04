@@ -8,17 +8,22 @@ const styles = {
     padding: "1rem",
   },
   card: {
-    border: "1px solid #ccc",
+    border: "1px solid #444",
     borderRadius: "8px",
     padding: "1rem",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-    backgroundColor: "#fff",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+    backgroundColor: "#333",
+    color: "#fff",
     wordBreak: "break-word",
   },
   key: {
     fontWeight: "bold",
     marginRight: "0.5rem",
+    color: "#61dafb",
   },
+  value: {
+    color: "#fff",
+  }
 };
 
 const JSONHandler = ({ data }) => {
@@ -31,7 +36,11 @@ const JSONHandler = ({ data }) => {
             {Object.entries(item).map(([key, value]) => (
               <div key={key}>
                 <span style={styles.key}>{key}:</span>
-                <span>{JSON.stringify(value)}</span>
+                <span style={styles.value}>
+                  {typeof value === 'object' 
+                    ? JSON.stringify(value) 
+                    : String(value)}
+                </span>
               </div>
             ))}
           </div>
@@ -42,7 +51,14 @@ const JSONHandler = ({ data }) => {
 };
 
 JSONHandler.handleData = async (data) => {
-  return JSON.parse(data);
+  try {
+    const parsed = JSON.parse(data);
+    // Handle both array and object with users property
+    return parsed.users || parsed;
+  } catch (e) {
+    console.error("Failed to parse JSON data:", e);
+    return [];
+  }
 };
 
 export default {

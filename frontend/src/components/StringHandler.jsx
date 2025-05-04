@@ -8,17 +8,22 @@ const styles = {
     padding: "1rem",
   },
   card: {
-    border: "1px solid #ccc",
+    border: "1px solid #444",
     borderRadius: "8px",
     padding: "1rem",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-    backgroundColor: "#fff",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+    backgroundColor: "#333",
+    color: "#fff",
     wordBreak: "break-word",
   },
   key: {
     fontWeight: "bold",
     marginRight: "0.5rem",
+    color: "#61dafb",
   },
+  value: {
+    color: "#fff",
+  }
 };
 
 const StringHandler = ({ data }) => {
@@ -31,7 +36,11 @@ const StringHandler = ({ data }) => {
             {Object.entries(item).map(([key, value]) => (
               <div key={key}>
                 <span style={styles.key}>{key}:</span>
-                <span>{JSON.stringify(value)}</span>
+                <span style={styles.value}>
+                  {typeof value === 'object' 
+                    ? JSON.stringify(value) 
+                    : String(value)}
+                </span>
               </div>
             ))}
           </div>
@@ -43,26 +52,72 @@ const StringHandler = ({ data }) => {
 
 StringHandler.handleData = async (data) => {
   try {
+    // Check for metadata in the first line
     const lines = data.trim().split("\n");
-
+    let totalItems = 0;
+    let startLine = 0;
+    
+    // Check if the first line contains metadata (Total: X)
+    if (lines[0] && lines[0].startsWith("Total:")) {
+      const totalMatch = lines[0].match(/Total:\s*(\d+)/);
+      if (totalMatch && totalMatch[1]) {
+        totalItems = parseInt(totalMatch[1], 10);
+        startLine = 1; // Skip the metadata line
+      }
+    }
+    
+    // Parse the data lines
     const parsed = lines
-      .map((line) => {
-        const [idPart, rest] = line.split(": ");
-        if (!rest) return null;
-
-        const [name, email] = rest.split(" - ");
-        const [firstName, lastName] = name.trim().split(" ");
-
+      .slice(startLine)
+      .map((line, index) => {
+        line = line.trim();
+        if (!line) return null;
+        
+        // Try to match different possible formats
+        
+        // Format: ID: Name - Email
+        const formatOne = line.match(/^(\d+):\s*(.*?)\s*-\s*(.*)$/);
+        if (formatOne) {
+          const [_, id, name, email] = formatOne;
+          const [firstName, ...lastNameParts] = name.trim().split(" ");
+          const lastName = lastNameParts.join(" ");
+          
+          return {
+            id: parseInt(id, 10),
+            firstName: firstName || "",
+            lastName: lastName || "",
+            email: email.trim() || "",
+          };
+        }
+        
+        // Format: Name (Email) - ID
+        const formatTwo = line.match(/^(.*?)\s*\((.*?)\)\s*-\s*(\d+)$/);
+        if (formatTwo) {
+          const [_, name, email, id] = formatTwo;
+          const [firstName, ...lastNameParts] = name.trim().split(" ");
+          const lastName = lastNameParts.join(" ");
+          
+          return {
+            id: parseInt(id, 10),
+            firstName: firstName || "",
+            lastName: lastName || "",
+            email: email.trim() || "",
+          };
+        }
+        
+        // Fallback - try to extract whatever we can
+        const parts = line.split(/[:-]/).map(p => p.trim());
+        
         return {
-          id: parseInt(idPart),
-          firstName: firstName || "",
-          lastName: lastName || "",
-          email: email || "",
+          id: parseInt(parts[0], 10) || index + 1,
+          content: line,
+          // Add more flexible parsing as needed
         };
       })
-      .filter(Boolean); // skip any malformed lines
-
-    return parsed;
+      .filter(Boolean); // Skip null/undefined entries
+    
+    // Return with total if available
+    return totalItems ? { users: parsed, total: totalItems } : parsed;
   } catch (e) {
     console.error("Failed to parse plain text data:", e);
     return [];
@@ -72,4 +127,8 @@ StringHandler.handleData = async (data) => {
 export default {
   type: "text/plain",
   Component: StringHandler,
+  buildUrl: (baseUrl, currentPage, itemsPerPage) => {
+    const skip = (currentPage - 1) * itemsPerPage;
+    return `${baseUrl}?limit=${itemsPerPage}&skip=${skip}`;
+  },
 };
