@@ -37,8 +37,8 @@ const XMLHandler = ({ data }) => {
               <div key={key}>
                 <span style={styles.key}>{key}:</span>
                 <span style={styles.value}>
-                  {typeof value === 'object' 
-                    ? JSON.stringify(value) 
+                  {typeof value === 'object'
+                    ? JSON.stringify(value)
                     : String(value)}
                 </span>
               </div>
@@ -55,97 +55,96 @@ XMLHandler.handleData = async (data) => {
     console.log("Raw XML data:", data.substring(0, 100) + "...");
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(data, "text/xml");
-    
-    // Check for parsing errors
+
     const parseError = xmlDoc.getElementsByTagName("parsererror");
     if (parseError.length > 0) {
       console.error("XML parsing error:", parseError[0].textContent);
       throw new Error("Failed to parse XML data");
     }
-    
-    // First, let's handle the case if it's nested within response->users->user structure
-    let users = [];
-    const responseElement = xmlDoc.getElementsByTagName("response")[0];
-    
-    if (responseElement) {
-      const usersElement = responseElement.getElementsByTagName("users")[0];
-      if (usersElement) {
-        // Try to get individual user elements
-        const userElements = usersElement.getElementsByTagName("user");
-        if (userElements && userElements.length > 0) {
-          // Convert NodeList to Array
-          users = Array.from(userElements);
-        } else {
-          // Handle case where 'user' might be an array directly in 'users'
-          try {
-            // In this backend structure, we might have users as an array in array format
-            const userArray = JSON.parse(usersElement.textContent);
-            if (Array.isArray(userArray)) {
-              return userArray; // Return the parsed array directly
-            }
-          } catch (e) {
-            console.warn("Failed to parse users content as JSON:", e);
-          }
-        }
-      }
-    }
-    
-    // If no users were found via the response->users->user path, try direct approach
-    if (users.length === 0) {
-      users = Array.from(xmlDoc.getElementsByTagName("user"));
-    }
-    
-    // Still no users? Try finding any elements with reasonable user data
-    if (users.length === 0) {
-      // Look for common user data patterns in any elements
-      const allElements = xmlDoc.getElementsByTagName("*");
-      for (let i = 0; i < allElements.length; i++) {
-        const element = allElements[i];
-        // If element has children with names like id, firstName, email, etc.
-        const childElements = element.children;
-        let isUserLike = false;
-        
-        for (let j = 0; j < childElements.length; j++) {
-          const childName = childElements[j].tagName.toLowerCase();
-          if (['id', 'firstname', 'lastname', 'email', 'username'].includes(childName)) {
-            isUserLike = true;
-            break;
-          }
-        }
-        
-        if (isUserLike) {
-          users.push(element);
-        }
-      }
-    }
-    
-    // Extract metadata if available
+
     let total = 0;
-    const metaElement = xmlDoc.getElementsByTagName("meta")[0];
+    const metaElement = xmlDoc.querySelector("response > meta");
     if (metaElement) {
-      const totalElement = metaElement.getElementsByTagName("total")[0];
+      const totalElement = metaElement.querySelector("total");
       if (totalElement) {
         total = parseInt(totalElement.textContent, 10) || 0;
       }
     }
-    
-    // Map XML nodes to objects
-    const result = users.map((userNode) => {
-      const obj = {};
-      // Get id from attribute if present
-      const id = userNode.getAttribute("id");
-      if (id) obj.id = id;
-      
-      Array.from(userNode.children).forEach((child) => {
-        obj[child.tagName] = child.textContent;
+
+    let userElements = xmlDoc.querySelectorAll("response > users > user");
+
+    if (userElements.length === 0) {
+      userElements = xmlDoc.querySelectorAll("user");
+    }
+
+    if (userElements.length === 0) {
+      userElements = xmlDoc.querySelectorAll("item");
+    }
+
+    if (
+      userElements.length === 0 ||
+      (userElements.length === 1 && userElements[0].textContent.includes("{"))
+    ) {
+      console.log("Trying to parse potential JSON inside XML");
+      const allElements = xmlDoc.getElementsByTagName("*");
+      const jsonData = [];
+
+      for (let i = 0; i < allElements.length; i++) {
+        const element = allElements[i];
+        const content = element.textContent.trim();
+
+        if (content.startsWith("{") && content.endsWith("}")) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed && typeof parsed === "object") {
+              jsonData.push(parsed);
+            }
+          } catch (e) {
+            // Ignore invalid JSON
+          }
+        }
+      }
+
+      if (jsonData.length > 0) {
+        console.log("Successfully parsed JSON from XML content:", jsonData);
+        return jsonData;
+      }
+    }
+
+    const usersArray = Array.from(userElements).map((userNode) => {
+      if (userNode.tagName === "item" && userNode.textContent.includes("{")) {
+        try {
+          const jsonMatch = userNode.textContent.match(/\{.*\}/);
+          if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+          }
+        } catch (e) {
+          console.warn("Failed to parse JSON from item node:", e);
+        }
+      }
+
+      const userData = {};
+
+      Array.from(userNode.children).forEach((prop) => {
+        const propName = prop.tagName;
+
+        if (prop.children.length > 0 && !prop.children[0].tagName) {
+          userData[propName] = prop.textContent.trim();
+        } else if (prop.children.length > 0) {
+          userData[propName] = {};
+          Array.from(prop.children).forEach((subProp) => {
+            userData[propName][subProp.tagName] = subProp.textContent.trim();
+          });
+        } else {
+          userData[propName] = prop.textContent.trim();
+        }
       });
-      return obj;
+
+      return userData;
     });
-    
-    console.log("Processed XML data:", result);
-    
-    // Return with total if available
-    return result.length > 0 ? (total ? { users: result, total } : result) : [];
+
+    console.log("Processed XML data:", usersArray);
+    return usersArray.length > 0 ? (total ? { users: usersArray, total } : usersArray) : [];
   } catch (error) {
     console.error("XML handler error:", error);
     return [];

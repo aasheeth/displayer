@@ -53,8 +53,36 @@ const JSONHandler = ({ data }) => {
 JSONHandler.handleData = async (data) => {
   try {
     const parsed = JSON.parse(data);
-    // Handle both array and object with users property
-    return parsed.users || parsed;
+    
+    // Handle different response formats
+    let users = [];
+    let total = 0;
+    
+    // Case 1: Array of users
+    if (Array.isArray(parsed)) {
+      users = parsed;
+      total = parsed.length;
+    } 
+    // Case 2: Object with users array
+    else if (parsed.users && Array.isArray(parsed.users)) {
+      users = parsed.users;
+      total = parsed.total || parsed.users.length;
+    }
+    // Case 3: Object with data in another property
+    else if (parsed.data && Array.isArray(parsed.data)) {
+      users = parsed.data;
+      total = parsed.total || parsed.count || parsed.data.length;
+    }
+    // Case 4: Object is a single user
+    else if (typeof parsed === 'object' && parsed !== null) {
+      users = [parsed];
+      total = 1;
+    }
+    
+    return { 
+      users: users, 
+      total: total || users.length 
+    };
   } catch (e) {
     console.error("Failed to parse JSON data:", e);
     return [];

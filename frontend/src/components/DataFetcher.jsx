@@ -23,14 +23,19 @@ const DataFetcher = () => {
       
       const skip = (currentPage - 1) * ITEMS_PER_PAGE;
       
-      // Use the appropriate plugin's buildUrl method if available
-      let url = `${apiUrl}?limit=${ITEMS_PER_PAGE}&skip=${skip}`;
-      const pluginByUrl = Object.values(PluginManager.plugins).find(
-        plugin => apiUrl.includes(plugin.type.split('/')[1])
-      );
+      // Get the content type from the URL
+      const contentType = apiUrl.includes('json') ? 'application/json' : 
+                          apiUrl.includes('xml') ? 'application/xml' : 
+                          'text/plain';
       
-      if (pluginByUrl && pluginByUrl.buildUrl) {
-        url = pluginByUrl.buildUrl(apiUrl, currentPage, ITEMS_PER_PAGE);
+      const Plugin = PluginManager.getPlugin(contentType);
+      
+      // Use the plugin's buildUrl method if available
+      let url;
+      if (Plugin && Plugin.buildUrl) {
+        url = Plugin.buildUrl(apiUrl, currentPage, ITEMS_PER_PAGE);
+      } else {
+        url = `${apiUrl}?limit=${ITEMS_PER_PAGE}&skip=${skip}`;
       }
 
       const response = await fetch(url);
@@ -39,26 +44,29 @@ const DataFetcher = () => {
         throw new Error(`HTTP error ${response.status}`);
       }
       
-      const contentType = response.headers.get("Content-Type");
+      // Get content type from response or use the one from URL
+      const responseContentType = response.headers.get("Content-Type") || contentType;
 
-      const Plugin = PluginManager.getPlugin(contentType);
       if (!Plugin) {
-        throw new Error("Unsupported Content-Type: " + contentType);
+        throw new Error("Unsupported Content-Type: " + responseContentType);
       }
 
       const raw = await response.text();
       const result = await Plugin.Component.handleData(raw);
 
-      setFormat(contentType);
+      setFormat(responseContentType);
       
-      // Handle different data structures - the result could be an array or an object with users property
+      // Handle different data structures
       const items = result.users || result;
       setData(Array.isArray(items) ? items : []);
       
       // Get total count from result, header, or fallback to items length
-      const total = result.total || parseInt(response.headers.get("X-Total-Count")) || items.length;
+      const total = result.total || parseInt(response.headers.get("X-Total-Count")) || (Array.isArray(items) ? items.length : 0);
       setTotalItems(total);
-      setTotalPages(Math.ceil(total / ITEMS_PER_PAGE));
+      
+      // Calculate total pages - ensure at least 1 page
+      const calculatedPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+      setTotalPages(calculatedPages);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError(`Failed to fetch data: ${err.message}`);
@@ -90,7 +98,7 @@ const DataFetcher = () => {
       {isLoading && data.length === 0 ? (
         <Loader />
       ) : error ? (
-        <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
+        <div className="error-message">
           {error}
         </div>
       ) : data.length === 0 ? (
@@ -100,14 +108,18 @@ const DataFetcher = () => {
       ) : (
         <>
           {Plugin && <Plugin.Component data={data} />}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => setCurrentPage(page)}
-          />
+          
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          )}
+          
           <div style={{ padding: "1rem", textAlign: "center" }}>
-            Showing {data.length} out of {totalItems} items (Page {currentPage}{" "}
-            of {totalPages})
+            Showing {data.length} out of {totalItems} items 
+            {totalPages > 1 ? ` (Page ${currentPage} of ${totalPages})` : ''}
           </div>
         </>
       )}
