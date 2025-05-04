@@ -1,24 +1,19 @@
 import React from "react";
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
-  // Don't render pagination if there's only one page
+
   if (totalPages <= 1) {
     return null;
   }
 
-  // For better UX, limit the number of page buttons shown
   const MAX_VISIBLE_PAGES = 5;
   
-  // Calculate the range of pages to show
   let startPage = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
   let endPage = Math.min(totalPages, startPage + MAX_VISIBLE_PAGES - 1);
-  
-  // Adjust the start page if we're near the end
   if (endPage - startPage + 1 < MAX_VISIBLE_PAGES) {
     startPage = Math.max(1, endPage - MAX_VISIBLE_PAGES + 1);
   }
-  
-  // Generate page numbers to display
+
   const pageNumbers = [];
   for (let i = startPage; i <= endPage; i++) {
     pageNumbers.push(i);
@@ -26,7 +21,6 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
   return (
     <div style={{ textAlign: "center", marginTop: "1rem" }}>
-      {/* First page */}
       {startPage > 1 && (
         <button
           style={{
@@ -43,8 +37,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           &lt;&lt;
         </button>
       )}
-      
-      {/* Previous page */}
+    
       {currentPage > 1 && (
         <button
           style={{
@@ -62,7 +55,6 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         </button>
       )}
       
-      {/* Page numbers */}
       {pageNumbers.map((page) => (
         <button
           key={page}
@@ -80,8 +72,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           {page}
         </button>
       ))}
-      
-      {/* Next page */}
+    
       {currentPage < totalPages && (
         <button
           style={{
@@ -98,8 +89,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           &gt;
         </button>
       )}
-      
-      {/* Last page */}
+
       {endPage < totalPages && (
         <button
           style={{

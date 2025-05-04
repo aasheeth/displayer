@@ -22,15 +22,11 @@ const DataFetcher = () => {
       setError(null);
       
       const skip = (currentPage - 1) * ITEMS_PER_PAGE;
-      
-      // Get the content type from the URL
       const contentType = apiUrl.includes('json') ? 'application/json' : 
                           apiUrl.includes('xml') ? 'application/xml' : 
                           'text/plain';
       
       const Plugin = PluginManager.getPlugin(contentType);
-      
-      // Use the plugin's buildUrl method if available
       let url;
       if (Plugin && Plugin.buildUrl) {
         url = Plugin.buildUrl(apiUrl, currentPage, ITEMS_PER_PAGE);
@@ -43,8 +39,6 @@ const DataFetcher = () => {
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
       }
-      
-      // Get content type from response or use the one from URL
       const responseContentType = response.headers.get("Content-Type") || contentType;
 
       if (!Plugin) {
@@ -55,16 +49,10 @@ const DataFetcher = () => {
       const result = await Plugin.Component.handleData(raw);
 
       setFormat(responseContentType);
-      
-      // Handle different data structures
       const items = result.users || result;
       setData(Array.isArray(items) ? items : []);
-      
-      // Get total count from result, header, or fallback to items length
       const total = result.total || parseInt(response.headers.get("X-Total-Count")) || (Array.isArray(items) ? items.length : 0);
       setTotalItems(total);
-      
-      // Calculate total pages - ensure at least 1 page
       const calculatedPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
       setTotalPages(calculatedPages);
     } catch (err) {
@@ -80,7 +68,6 @@ const DataFetcher = () => {
     fetchData();
   }, [fetchData]);
 
-  // When changing format, reset to first page
   const handleFormatChange = (newApiUrl) => {
     setApiUrl(newApiUrl);
     setCurrentPage(1);

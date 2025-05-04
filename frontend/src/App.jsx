@@ -6,8 +6,6 @@ import XMLHandler from "./components/XMLHandler";
 import StringHandler from "./components/StringHandler";
 import FormatSwitcher from "./components/FormatSwitcher";
 import "./App.css";
-
-// Register all available plugins
 PluginManager.registerPlugin(JSONHandler.type, JSONHandler);
 PluginManager.registerPlugin(XMLHandler.type, XMLHandler);
 PluginManager.registerPlugin(StringHandler.type, StringHandler);
