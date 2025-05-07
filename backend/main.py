@@ -28,7 +28,7 @@ async def get_json_data(limit: int = Query(10), skip: int = Query(0)):
     data = await fetch_users(limit, skip)
     return JSONResponse(content=data)
 
-@app.get("/api/string")
+@app.get("/api/text")
 async def get_string_data(limit: int = Query(10), skip: int = Query(0)):
     data = await fetch_users(limit, skip)
     users = data.get("users", [])

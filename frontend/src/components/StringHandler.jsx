@@ -52,30 +52,21 @@ const StringHandler = ({ data }) => {
 
 StringHandler.handleData = async (data) => {
   try {
-    // Check for metadata in the first line
     const lines = data.trim().split("\n");
     let totalItems = 0;
     let startLine = 0;
-    
-    // Check if the first line contains metadata (Total: X)
     if (lines[0] && lines[0].startsWith("Total:")) {
       const totalMatch = lines[0].match(/Total:\s*(\d+)/);
       if (totalMatch && totalMatch[1]) {
         totalItems = parseInt(totalMatch[1], 10);
-        startLine = 1; // Skip the metadata line
+        startLine = 1; 
       }
     }
-    
-    // Parse the data lines
     const parsed = lines
       .slice(startLine)
       .map((line, index) => {
         line = line.trim();
         if (!line) return null;
-        
-        // Try to match different possible formats
-        
-        // Format: ID: Name - Email
         const formatOne = line.match(/^(\d+):\s*(.*?)\s*-\s*(.*)$/);
         if (formatOne) {
           const [_, id, name, email] = formatOne;
@@ -89,8 +80,6 @@ StringHandler.handleData = async (data) => {
             email: email.trim() || "",
           };
         }
-        
-        // Format: Name (Email) - ID
         const formatTwo = line.match(/^(.*?)\s*\((.*?)\)\s*-\s*(\d+)$/);
         if (formatTwo) {
           const [_, name, email, id] = formatTwo;
@@ -104,19 +93,14 @@ StringHandler.handleData = async (data) => {
             email: email.trim() || "",
           };
         }
-        
-        // Fallback - try to extract whatever we can
         const parts = line.split(/[:-]/).map(p => p.trim());
         
         return {
           id: parseInt(parts[0], 10) || index + 1,
           content: line,
-          // Add more flexible parsing as needed
         };
       })
-      .filter(Boolean); // Skip null/undefined entries
-    
-    // Return with total if available
+      .filter(Boolean); 
     return totalItems ? { users: parsed, total: totalItems } : parsed;
   } catch (e) {
     console.error("Failed to parse plain text data:", e);

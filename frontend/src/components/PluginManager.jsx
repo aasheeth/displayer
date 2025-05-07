@@ -6,7 +6,7 @@ const PluginManager = {
   },
 
   getPlugin(contentType) {
-    if (!contentType) return null; // Early return if contentType is null or undefined
+    if (!contentType) return null;
     const normalized = contentType.split(';')[0].trim();
     return this.plugins[normalized];
   }

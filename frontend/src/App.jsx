@@ -23,12 +23,6 @@ const App = () => {
       <main>
         <DataFetcher />
       </main>
-      
-      <footer style={{ marginTop: "2rem", fontSize: "0.8rem", opacity: 0.7 }}>
-        <p>
-          Data Fetcher Application - Powered by React &amp; Plugin Architecture
-        </p>
-      </footer>
     </div>
   );
 };
